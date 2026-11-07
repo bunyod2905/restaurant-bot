@@ -32,7 +32,9 @@ async def cmd_start(message: types.Message, state: FSMContext):
         
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     await message.answer(
-        f"Здравствуйте, {message.from_user.first_name}! 👋\nДобро пожаловать в наш премиальный ресторан.\nВыберите действие ниже:",
+        f"Здравствуйте, {message.from_user.first_name}! 👋\n"
+        "Добро пожаловать в наш премиальный ресторан.\n"
+        "Выберите действие ниже:",
         reply_markup=keyboard
     )
 
@@ -226,11 +228,15 @@ async def get_phone(message: types.Message, state: FSMContext):
     )
     await message.answer("📍 Теперь отправьте вашу геопозицию на карте или напишите адрес доставки текстом:", reply_markup=geo_kb)
 
-@dp.message(OrderState.waiting_for_address)
+@dp.message(OrderState.waiting_for_address, F.location | F.text)
 async def finalize_order(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     data = await state.get_data()
-    address_text = "Геопозиция прикреплена" if message.location else message.text
+    
+    if message.location:
+        address_text = f"📍 Геолокация (Широта: {message.location.latitude}, Долгота: {message.location.longitude})"
+    else:
+        address_text = message.text
     
     user_cart = carts.get(user_id, {})
     items_summary = ""
@@ -292,7 +298,7 @@ async def finalize_order(message: types.Message, state: FSMContext):
         if message.location:
             await bot.send_location(ADMIN_ID, message.location.latitude, message.location.longitude)
         await bot.send_message(ADMIN_ID, admin_text, reply_markup=admin_kb, parse_mode="Markdown")
-        print(f"✅ Заказ №{order_id} отправлен администратору!")
+        print(f"✅ Заказ №{order_id} успешно отправлен администратору!")
     except Exception as e:
         print(f"❌ Ошибка отправки админу: {e}")
 
@@ -344,14 +350,3 @@ async def update_order_status(callback: types.CallbackQuery):
 
     await callback.message.edit_text(
         callback.message.text + f"\n\nСтатус: **{title}**",
-        reply_markup=callback.message.reply_markup,
-        parse_mode="Markdown"
-    )
-    await callback.answer(f"Статус изменен на {title}")
-
-async def main():
-    print("🚀 Масштабный ресторанный бот успешно запущен!")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
